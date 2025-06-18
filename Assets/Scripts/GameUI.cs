@@ -42,6 +42,6 @@ public class GameUI : MonoBehaviour
     {
         server.Shutdown();
         client.Shutdown();
-        menuAnimator.SetTrigger("StartMenu");
+        menuAnimator.SetTrigger("OnlineMenu");
     }
 }
