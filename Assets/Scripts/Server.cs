@@ -66,11 +66,21 @@ public class Server : MonoBehaviour
         if (!isActive)
             return;
 
-        // KeepAlive();
+        KeepAlive();
         driver.ScheduleUpdate().Complete();
         CleanupConnections();
         AcceptNewConnections();
         UpdateMessagePump();
+    }
+
+    // Broadcasts the Keep Alive message to keep client and server alive
+    private void KeepAlive()
+    {
+        if (Time.time - lastKeepAlive > keepAliveTickRate)
+        {
+            lastKeepAlive = Time.time;
+            Broadcast(new NetKeepAlive());
+        }
     }
 
     // Removes connections that arent connected but we still have reference to
