@@ -1,10 +1,7 @@
-using NUnit.Framework;
-using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using Unity.Networking.Transport;
+using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.Rendering.UI;
 
 public class TicTacToe : MonoBehaviour
 {
@@ -12,6 +9,7 @@ public class TicTacToe : MonoBehaviour
     [SerializeField] List<GameObject> slotX = new List<GameObject>();
     [SerializeField] List<GameObject> slotO = new List<GameObject>();
     private Dictionary<int, int> slots = new Dictionary<int, int>();
+    private bool xTurn = true;
 
     // Multiplayer logic
     private int playerCount = -1;
@@ -33,13 +31,6 @@ public class TicTacToe : MonoBehaviour
         SlotsInit();
     }
 
-
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
     private void SlotsInit()
     {
         slots.Clear();
@@ -49,22 +40,30 @@ public class TicTacToe : MonoBehaviour
         }
     }
 
-    public void MakeMove(int slot)
+    public void PressMakeMove(int slot)
     {
-        if (currentTeam == 0)
+        if (currentTeam == 0 && !xTurn || currentTeam == 1 && xTurn)
+            return;
+
+        MakeMove(slot);
+        NetMakeMove mm = new NetMakeMove();
+        mm.positionPressed = slot;
+        mm.teamId = currentTeam;
+        Client.Instance.SendToServer(mm);
+    }
+
+    private void MakeMove(int slot)
+    {
+        slots[slot] = currentTeam;
+        if (xTurn)
         {
-            slots[slot] = 0;
-            // Send message slot
-        }
-        else if (currentTeam == 1)
-        {
-            slots[slot] = 1;
-            // Send message slot
+            slotX[slot].SetActive(true);
         }
         else
         {
-            Debug.LogError("Something went wrong with the currentTeam, currentTeam is probably -1");
+            slotO[slot].SetActive(true);
         }
+        xTurn = !xTurn;
         CheckWin();
     }
 
@@ -115,6 +114,9 @@ public class TicTacToe : MonoBehaviour
     {
         NetUtility.S_WELCOME += OnWelcomeServer;
         NetUtility.C_WELCOME += OnWelcomeClient;
+        NetUtility.C_START_GAME += OnStartGameClient;
+        NetUtility.S_MAKE_MOVE += OnMakeMoveServer;
+        NetUtility.C_MAKE_MOVE += OnMakeMoveClient;
     }
 
 
@@ -122,7 +124,9 @@ public class TicTacToe : MonoBehaviour
     {
         NetUtility.S_WELCOME -= OnWelcomeServer;
         NetUtility.C_WELCOME -= OnWelcomeClient;
-        NetUtility.C_START_GAME += OnStartGameClient;
+        NetUtility.C_START_GAME -= OnStartGameClient;
+        NetUtility.S_MAKE_MOVE -= OnMakeMoveServer;
+        NetUtility.C_MAKE_MOVE -= OnMakeMoveClient;
     }
 
     // Server messages
@@ -138,9 +142,21 @@ public class TicTacToe : MonoBehaviour
         Server.Instance.SendToClient(cnn, nw);
 
         if (playerCount == 1)
+        {
+            Debug.Log("playerCount == 1");
             Server.Instance.Broadcast(new NetStartGame());
+        }
     }
 
+    private void OnMakeMoveServer(NetMessage msg, NetworkConnection cnn)
+    {
+        NetMakeMove mm = msg as NetMakeMove;
+
+        // Space here for validation checks (how are you gonna hack tic-tac-toe...)
+
+        // Receive and broadcast it back
+        Server.Instance.Broadcast(msg);
+    }
 
     // Client messages
     private void OnWelcomeClient(NetMessage msg)
@@ -157,6 +173,16 @@ public class TicTacToe : MonoBehaviour
     private void OnStartGameClient(NetMessage msg)
     {
         GameUI.Instance.OnGameStart();
+    }
+
+    private void OnMakeMoveClient(NetMessage msg)
+    {
+        NetMakeMove mm = msg as NetMakeMove;
+
+        if (mm.teamId != currentTeam)
+        {
+            MakeMove(mm.positionPressed);
+        }
     }
     #endregion 
 }
