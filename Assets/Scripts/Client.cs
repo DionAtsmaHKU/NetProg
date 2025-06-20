@@ -80,7 +80,7 @@ public class Client : MonoBehaviour
             if (cmd == NetworkEvent.Type.Connect)
             {
                 Debug.Log("We're connected woo hoo");
-                // SendToServer(new NetWelcome());
+                SendToServer(new NetWelcome());
             }
             else if (cmd == NetworkEvent.Type.Data)
             {
