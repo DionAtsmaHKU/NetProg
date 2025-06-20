@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using Unity.Networking.Transport;
 using Unity.VisualScripting;
 using UnityEngine;
@@ -11,9 +13,13 @@ public class TicTacToe : MonoBehaviour
     private Dictionary<int, int> slots = new Dictionary<int, int>();
     private bool xTurn = true;
 
+    // Score: slots left open
+    private int slotsOpen = 9;
+
     // Multiplayer logic
     private int playerCount = -1;
     private int currentTeam = -1;
+    private bool[] playerRematch = new bool[2];
 
     private void Awake()
     {
@@ -54,7 +60,8 @@ public class TicTacToe : MonoBehaviour
 
     private void MakeMove(int slot)
     {
-        slots[slot] = currentTeam;
+        slotButtons[slot].SetActive(false);
+        slots[slot] = Convert.ToInt32(xTurn);
         if (xTurn)
         {
             slotX[slot].SetActive(true);
@@ -63,8 +70,9 @@ public class TicTacToe : MonoBehaviour
         {
             slotO[slot].SetActive(true);
         }
-        xTurn = !xTurn;
+        slotsOpen--;
         CheckWin();
+        xTurn = !xTurn;
     }
 
     private void CheckWin()
@@ -85,28 +93,87 @@ public class TicTacToe : MonoBehaviour
             slots[6] == 0 && slots[7] == 0 && slots[8] == 0 ||
             // Diagonal Wins
             slots[0] == 1 && slots[4] == 1 && slots[8] == 1 ||
-            slots[0] == 1 && slots[4] == 1 && slots[8] == 1 ||
-            slots[2] == 0 && slots[4] == 0 && slots[6] == 0 ||
+            slots[0] == 0 && slots[4] == 0 && slots[8] == 0 ||
+            slots[2] == 1 && slots[4] == 1 && slots[6] == 1 ||
             slots[2] == 0 && slots[4] == 0 && slots[6] == 0)
         {
-            PlayerWins(currentTeam);
-            return;
+            PlayerWins(true);
         }
-        // 
+        else if (slotsOpen == 0)
+        {
+            PlayerWins(false);
+        }
     }
 
-    private void PlayerWins(int team)
+    private void PlayerWins(bool gameWon)
     {
-        // send message that a player has won
+        foreach(GameObject go in slotButtons)
+        {
+            go.SetActive(false);
+        }
+        if (!gameWon)
+        {
+            GameUI.Instance.EnableWinScreen("It's a tie!");
+        }
+        else if (xTurn)
+        {
+            GameUI.Instance.EnableWinScreen("X wins!");
+        }
+        else
+        {
+            GameUI.Instance.EnableWinScreen("O wins!");
+        }
+        // Add slots to leaderboard
+        // Show "Leaderboard";
+    }
+
+    public void OnRematchButton()
+    {
+        NetRematch rm = new NetRematch();
+        rm.teamId = currentTeam;
+        rm.wantRematch = 1;
+        Client.Instance.SendToServer(rm);
+    }
+
+    public void OnMenuButton()
+    {
+        NetRematch rm = new NetRematch();
+        rm.teamId = currentTeam;
+        rm.wantRematch = 0;
+        Client.Instance.SendToServer(rm);
+        ResetGame();
+        GameUI.Instance.OnGameEnd();
+        Invoke("ShutdownDelayed", 1.0f);
+    }
+
+    private void ShutdownDelayed()
+    {
+        Client.Instance.Shutdown();
+        Server.Instance.Shutdown();
+        playerCount = -1;
+        currentTeam = -1;
     }
 
     private void ResetGame()
     {
+        xTurn = !xTurn;
+        slotsOpen = 9;
+        playerRematch[0] = playerRematch[1] = false;
         foreach(GameObject go in slotButtons)
         {
             go.SetActive(true);
         }
+        foreach(GameObject go in slotX)
+        {
+            go.SetActive(false);
+        }
+        foreach (GameObject go in slotO)
+        {
+            go.SetActive(false);
+        }
         SlotsInit();
+        GameUI.Instance.DisableWinScreen();
+        GameUI.Instance.EnableRematchButton();
     }
 
     #region Event Registering
@@ -117,6 +184,8 @@ public class TicTacToe : MonoBehaviour
         NetUtility.C_START_GAME += OnStartGameClient;
         NetUtility.S_MAKE_MOVE += OnMakeMoveServer;
         NetUtility.C_MAKE_MOVE += OnMakeMoveClient;
+        NetUtility.S_REMATCH += OnRematchServer;
+        NetUtility.C_REMATCH += OnRematchClient;
     }
 
 
@@ -127,6 +196,8 @@ public class TicTacToe : MonoBehaviour
         NetUtility.C_START_GAME -= OnStartGameClient;
         NetUtility.S_MAKE_MOVE -= OnMakeMoveServer;
         NetUtility.C_MAKE_MOVE -= OnMakeMoveClient;
+        NetUtility.S_REMATCH -= OnRematchServer;
+        NetUtility.C_REMATCH -= OnRematchClient;
     }
 
     // Server messages
@@ -158,6 +229,12 @@ public class TicTacToe : MonoBehaviour
         Server.Instance.Broadcast(msg);
     }
 
+    private void OnRematchServer(NetMessage msg, NetworkConnection cnn)
+    {
+        // Receive and broadcast it back
+        Server.Instance.Broadcast(msg);
+    }
+
     // Client messages
     private void OnWelcomeClient(NetMessage msg)
     {
@@ -183,6 +260,26 @@ public class TicTacToe : MonoBehaviour
         {
             MakeMove(mm.positionPressed);
         }
+    }
+
+    private void OnRematchClient(NetMessage msg)
+    {
+        NetRematch rm = msg as NetRematch;
+
+        // Set bool for rematch
+        playerRematch[rm.teamId] = rm.wantRematch == 1;
+
+        // Activate the Waiting For Rematch UI
+        if (rm.teamId != currentTeam)
+        {
+            GameUI.Instance.WantsRematch(rm.wantRematch == 1);
+            if (rm.wantRematch != 1) 
+                GameUI.Instance.DisableRematchButton();
+        }
+            
+
+        if (playerRematch[0] && playerRematch[1])
+            ResetGame();
     }
     #endregion 
 }

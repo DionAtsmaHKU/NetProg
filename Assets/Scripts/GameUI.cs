@@ -1,6 +1,7 @@
 using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class GameUI : MonoBehaviour
 {
@@ -14,8 +15,13 @@ public class GameUI : MonoBehaviour
 
     [SerializeField] GameObject canvasUI;
     [SerializeField] GameObject boardUI;
+    [SerializeField] GameObject winUI;
+    [SerializeField] TextMeshProUGUI winText;
+    [SerializeField] GameObject wantsRematch;
+    [SerializeField] GameObject noRematch;
     [SerializeField] Animator menuAnimator;
     [SerializeField] TMP_InputField addressInput;
+    [SerializeField] Button rematchButton;
     public Server server;
     public Client client;
 
@@ -54,5 +60,44 @@ public class GameUI : MonoBehaviour
     {
         canvasUI.SetActive(false);
         boardUI.SetActive(true);
+    }
+
+    public void OnGameEnd()
+    {
+        canvasUI.SetActive(true);
+        boardUI.SetActive(false);
+        DisableWinScreen();
+        menuAnimator.SetTrigger("StartMenu");
+    }
+
+    public void EnableWinScreen(string text)
+    {
+        winText.text = text;
+        winUI.SetActive(true);
+    }
+
+    public void WantsRematch(bool rematch)
+    {
+        if (rematch)
+            wantsRematch.SetActive(true);
+
+        else noRematch.SetActive(true);
+    }
+
+    public void DisableWinScreen()
+    {
+        winUI.SetActive(false);
+        wantsRematch.SetActive(false);
+        noRematch.SetActive(false);
+    }
+
+    public void DisableRematchButton()
+    {
+        rematchButton.interactable = false;
+    }
+
+    public void EnableRematchButton()
+    {
+        rematchButton.interactable = true;
     }
 }
