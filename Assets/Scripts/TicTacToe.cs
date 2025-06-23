@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using Unity.Networking.Transport;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public class TicTacToe : MonoBehaviour
@@ -46,6 +44,8 @@ public class TicTacToe : MonoBehaviour
         }
     }
 
+    // This function gets called when a slot is clicked by either player. 
+    // The actual move and message only happen when it's that player's turn.
     public void PressMakeMove(int slot)
     {
         if (currentTeam == 0 && !xTurn || currentTeam == 1 && xTurn)
@@ -58,6 +58,7 @@ public class TicTacToe : MonoBehaviour
         Client.Instance.SendToServer(mm);
     }
 
+    // Sets the correct symbol in the slot
     private void MakeMove(int slot)
     {
         slotButtons[slot].SetActive(false);
@@ -75,6 +76,8 @@ public class TicTacToe : MonoBehaviour
         xTurn = !xTurn;
     }
 
+    // Checks all 16 possible ways a game can be won and call the PlayerWins 
+    // function, or calls it when there are no slots left (= it's a tie).
     private void CheckWin()
     {
         if ( // Vertical Wins
@@ -105,6 +108,11 @@ public class TicTacToe : MonoBehaviour
         }
     }
 
+    // Checks whether the game is a tie or a win, for now it only sends
+    // a text paramater to the EnableWinScreen function.
+
+    // Ideally this is where the amount of slots left can get added to a 
+    // leadberboard, but this was never implemented due to time constraints.
     private void PlayerWins(bool gameWon)
     {
         foreach(GameObject go in slotButtons)
@@ -123,8 +131,8 @@ public class TicTacToe : MonoBehaviour
         {
             GameUI.Instance.EnableWinScreen("O wins!");
         }
-        // Add slots to leaderboard
-        // Show "Leaderboard";
+        // Add slotsOpen to leaderboard;
+        // Show leaderboard;
     }
 
     public void OnRematchButton()
